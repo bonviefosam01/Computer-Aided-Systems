@@ -1,0 +1,178 @@
+---
+title: "Bluebike Report"
+author: "Bonvie Fosam and Abigail Green"
+date: "May 8th, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = FALSE, echo=FALSE, include = FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(reshape2)
+library(ggridges)
+library(leaflet)
+library(tidyverse)
+library(tidytext)
+library(textdata)
+library(rvest)
+pop_data <- read.csv("bluebikes_population_data.csv")
+gen_data <- read.csv("bluebikes_data_general.csv")
+```
+
+## **Introduction**
+
+Bluebikes is a Boston-based bike rental service intended for leisure and commuting alike. Focusing on spreading business to the West Point, Highland Falls, and Fort Montgomery region will require similar marketing tactics that are already in place along with adjustments made to consider the weather and population of this specific area. West Point holds many students and families year-round. Although being on post reduces the need of Bluebikes for commuting purposes, leisure riding can be marketed specifically to make up for that adjustment in the region. According to data from 2011 and 2012, many things, such as the age of the average customer or the prime time of year for business, will not change much from the Boston area to the West Point area. Through analysis and visualizations, a handful of marketing recommendations can be made at Bluebikes expands beyond the Boston region.
+
+## **Methodology**
+
+The first step in providing the Bluebike marketing team with necessary information was conducting data analysis on the 2011 to 2012 general and population data. The relevant data was isolated from the original data files so that vital information like the most common type of rider, most common reason to ride, the most common time to ride, and the most common age could be identified. To visualize this, three graphs were made. One of the visualizations created shows the distribution of the number of casual, registered, leisure, commuters, student, and employed riders in a given month. Additionally, the multiple distribution curves were color coated and plotted on a single chart using the "ggridges" library on r. This library was chosen because it provided a visually appealing way to show a lot of data on a single plot. The few distribution curves that were the most skewed to the right, meaning that for many of the months there were a larger number of riders of a given type, were identified as components of the target audience. The next visualization identified the target audience in terms of age, and showcased any variations over time. This was represented using a staked bar chart that showed the proportion of riders that came from each age group every month, and all of the bars equaled to 1 (the entire rider population). In this way, any variability in each age group over time was extremely clear. This graph is useful in communicating to the marketing team how their marketing strategy should change, or not change, throughout the year. The third visualization show the total number of riders in response to the months of the year and the average temperature. This graph is helpful for the marketing team because it indicates both the peak months and the peak temperatures which is vital information when formulating how to advertise.
+
+The three informational graphs combined the 2011 and 2012 data to make overall statistics, however it is also important to showcase each year's data separately. On the interactive graph displayed on the third page of the flex dashboard, the total number of riders in response to influential facts like temperature, humidity, and week day. The user chooses year (2011 or 2012) and the and the influencing factor from a drop down list. These influencing factors are important to evaluate when considering the area of interest. The observations from Bluebikes in the Boston area can be interpreted and applied to the West Point, Highland Falls, and Fort Montgomery area. Understanding temperature's influence on ridership is important as Boston and the area of interest are geographically close to one another and generally experience the same weather The humidity's influence on ridership is important because the area of interest gets very humid in the summer time, so knowing how customers react to humidity will help in shaping the marketing plan. Lastly, understanding the effects of weekday on ride share is important because weekly activity at the area of interest is fairly consistent. In all, the interactive plot allows to user to understand the data through a more specific lens.
+
+For further data collection, web scraping and text mining was used to evaluate the reviews of Bluebike from the Apple app store reviews page. For each review, the customer can write a small blurb on their experience using BlueBike. These blurbs were evaluated using the "afinn" sentiments values so that the overall tone of the reviews could be observed. This information is help to the marketing team because they can understand how customers recieve the product and how much it is liked. From there, the marketing team can adjust accordingly.
+ 
+## **Findings:**
+
+### Who is the target audience? What characteristics do they share?
+
+The following visualization shows that students, commuters, and registered individuals ride bluebikes the most month to month. We can infer that the target audience are students who commutes to and from classes. Additionally, these people use it regularly enough to  decide that registering is necessary. Some plausible shared characteristics of this population are that they are young, busy, and fast-paced people.
+
+```{r, message = FALSE, echo=FALSE, fig.align = 'center'}
+ride_type_demo <- pop_data %>% 
+  group_by(month) %>% 
+  summarise(total_riders = mean(total_riders), casual = mean(casual), 
+            registered = mean(registered), leisure = mean(leisure), commute = mean(commute), 
+            employed = mean(employed), unemployed = mean(unemployed), student = mean(student))
+
+
+melted_ride_type <- melt(ride_type_demo, id.vars = "month", measure.vars = c("casual", 
+                                                                      "registered", "leisure", 
+                                                                      "commute", "employed", "student"))
+
+
+ggplot(melted_ride_type, aes(x = value, y = variable, fill = variable)) + geom_density_ridges(scale = 4, rel_min_height = 0.01)+
+  scale_x_continuous(breaks = seq(0,275,50)) + theme_minimal() + xlab("Number of Riders") + ylab("Ridership Population Category") + ggtitle("Distribution of Riders by Category") + labs(fill = "Category")+ theme(plot.title = element_text(hjust = 0.5))
+
+
+```
+
+### Does the target audience change over time?
+The visualization below reveals that there are minimal changes to distribution of age groups riding bluebikes every month during the years 2011 and 2012. This is evident becuase for every month, the 25 and under age group make up a little over 50% of riders, the 26 to 35 year old make up around 25% of riders, the 36 to 45 year olds and the 46 to 55 year olds make up around 10% of riders respectively, and the over 55 age group make up around 5% of riders. Although there are slight increases of riders in the summer months for the older age groups, the distribution stays roughly consistent. This indicates that another characterisitc of the target audience is that they are 25 years old and younger, and that this does not change much over time. So, in terms of who they direct advertising at, the marketing team can keep their strategy fairly consistent throughout the year.
+
+```{r, message = FALSE, echo=FALSE, fig.align = 'center'}
+age_demo <- pop_data %>% 
+  mutate(Under_Age25 = under_25/total_riders) %>% 
+  mutate(Age26_to_Age35 = age_2635/total_riders) %>% 
+  mutate(Age36_to_Age45 = age_3645/total_riders) %>% 
+  mutate(Age46_to_Age55 = age_4655/total_riders) %>% 
+  mutate(Over_Age55 = over_55/total_riders) %>%
+  select(year, month, Under_Age25 , Age26_to_Age35, Age36_to_Age45, Age46_to_Age55, Over_Age55) %>% 
+  mutate(month = as.factor(month))
+  
+age_demo <- age_demo %>% 
+  group_by(month) %>% 
+  summarise(Under_Age25 = mean(Under_Age25), Age26_to_Age35 = mean(Age26_to_Age35), 
+            Age36_to_Age45 = mean(Age36_to_Age45), Age46_to_Age55 = mean(Age46_to_Age55), 
+            Over_Age55 = mean(Over_Age55))
+
+melted_age_demo <- melt(age_demo, id.vars = "month", measure.vars = c("Under_Age25", "Age26_to_Age35", 
+                                                                      "Age36_to_Age45", "Age46_to_Age55", 
+                                                                      "Over_Age55"))
+
+
+ggplot(melted_age_demo, aes(x = month, y = value )) + geom_col(aes(fill = variable), width = 0.7) +  theme_minimal() + xlab("Months of the Year") + ylab("Proportion of Riders") + ggtitle("Distribution of Riders by Age Group Over Time") + labs(fill = "Age Group")+ theme(plot.title = element_text(hjust = 0.5))
+```
+
+### How is ridership impacted by the season and the weather?
+
+The graph below shows that the total amount of bike riders spikes and remains generally constant from May to October. Ridership is above 3000 riders per month from May through the warm summer months, and it remains as high through mid-autumn. The fall months of September and October have nearly as many riders as in summertime despite the cooling temperature. Looking at the winter months of December, January, and February, December has a significantly higher number of bike riders. This is likely due to the holiday season and increase of outdoor events for the winter.
+
+```{r, message = FALSE, echo=FALSE, fig.align = 'center'}
+full_data <- pop_data %>%
+  left_join(gen_data, by = "id") %>% 
+  group_by(month) %>% 
+  summarise(temp = mean(temp), total_riders=sum(total_riders)) %>% 
+  mutate( month = as.factor(month)) %>% 
+  mutate( temp = round(temp*100)) 
+
+ggplot(data = full_data, aes(x = month, y = total_riders, fill = month)) +
+  geom_bar(stat = "identity", position=position_dodge()) +
+  geom_text(aes(label=temp), vjust=1.6, color="black",
+            position = position_dodge(0.9), size=4) + ggtitle("Bike Riders and Average Temperature in Each Month ") + xlab("Months of the Year") + ylab("Total Riders") + scale_fill_manual(values=c("#66CCFF", "#6699FF", "#66CC99", "#66FF66", "#66CC33", "#FF6633", "#CC3300", "#990000", "#CC3366", "#990066", "#990099", "#6600FF"))+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### Apple App Store Review Analysis
+
+The following plot shows the results from scraping the Bluebike reviews from the Apple app store. Overall, the majority of the reviews were positive with only a couple of negative posts. An important thing to consider is that despite the fact that there were originally many reviews on the site, a good number of them did not include words that were recognized by the sentiments library. So, in all, there were only nine valid reviews. The sentiments library and the words included were slightly limiting, but the graph illustrates an intuitive analisys regardless. There are more positive than negative reviews on the app which encourages the fact that current marketing tactics do not need to be altered too greatly moving forward.
+
+```{r, message = FALSE, echo=FALSE, fig.align = 'center'}
+url <- 'https://apps.apple.com/us/app/bluebikes/id1250203009#see-all/reviews'
+
+page <- read_html(url)
+
+reviews <- page %>% 
+  html_nodes(".we-truncate") %>% 
+  #html_node('p') %>%
+  #html_attr('dir') %>% 
+  html_text(trim = TRUE)
+
+review_data <- data.frame(id = seq(1,length(reviews)), review = reviews)
+
+review_data <- review_data %>% 
+  filter(is.na(review) == FALSE)
+
+
+review_token <- review_data %>% 
+  mutate(review = as.character(review)) %>% 
+  unnest_tokens(word,review) 
+
+review_sent <- review_token %>% 
+  inner_join(get_sentiments('afinn'))
+
+review_sent_sum <- review_sent %>% 
+  group_by(id) %>% 
+  summarise(review_score= sum(value))
+
+ggplot(review_sent_sum, aes(reorder(id, review_score), review_score, fill = review_score)) + 
+    geom_col() + coord_flip() + theme_minimal() + xlab("Review ID Number") + ylab("Score of Review") + 
+  ggtitle("Tone of Reviews on Apple App Store") +   theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+## **Who should Bluebikes’ West Point marketing campaigns target? When? Why?**
+As for the West Point community specifically, a large portion of the population is made up of cadets who are not present during the summer months. The families and faculty at West Point remain there year-round, so targeting families for leisurely use in the summer would be beneficial. Targeting cadets beginning in early August upon their return would capitalize on the increase of population and revenue in West Point and the surrounding areas of Highland Falls and Fort Montgomery. Early fall remains a very busy time for Bluebikes, and this would be no different for the West Point community at the start of the fall semester. Although the West Point community will have very little need for Bluebikes in terms of commuting because of the closeness of classes and work for those on post, leisure riding would remain appealing to the area while warm weather lasts through October. At the start of the semester, the community is at its largest and can still enjoy nice weather on the weekends of August, September, and October.
+
+
+## **Recommended Marketing Strategies**
+
+**Target college-aged students year-round**
+
+ --- The distribution of customers under 25 remains the same from month to month and makes up the largest proportion of customer ages. Students, specifically, also utilize Bluebikes on a larger distribution than those who are employed. These students use the bikes for leisure as well as commute to class.
+
+**Market leisure riding mid-May through October**
+
+ --- The warmer weather during this time encourages outdoor activities and requires more accessible transportation for students that are home for the summer and families that spend more time outside.
+
+**Market leisure riding mid-December during the holidays**
+
+ --- Despite the cold weather in December, there is a significant spike in total ridership during the holiday season. Capitalizing on this could raise the amount of ridership in December to that similar in the peak of the summertime.
+
+**Encourage registration or membership perks**
+
+ --- According to the data, more riders were registered customers rather than casual users. This supports customer loyalty and increases likelihood of repeated uses from the same customer.
+
+
+
+## **Conclusion**
+
+As the scope of Bluebikes marketing expands past Boston, only slight changes are needed to maximize business and total ridership in the region of West Point. Not much changes as far as weather or age in the area, but shifting a focus to early autumn and encouraging customer loyalty with registration perks can build total ridership to peak for extended periods of time. Based on app reviews, weather analysis, customer analysis, and the changes in population from region to region, most  marketing tactics can remain consistant, however, if the recommendations abover are headed, Bluebikes will surely find success in the broader West Point, Highland Falls, and Fort Montgomery region.  
+
+
+
+

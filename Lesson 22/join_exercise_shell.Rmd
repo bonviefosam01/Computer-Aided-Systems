@@ -1,0 +1,51 @@
+Lesson 22 Class Exercise; 
+Author: Bonvie Fosam
+
+1) Read in the TRANSCOM data and show the first 6 rows:
+
+
+```{r, message = FALSE, warning = FALSE}
+library(readr)
+library(dplyr)
+
+transcom <- read_csv("USTRANSCOM_DATA.csv")
+head(transcom)
+
+```
+
+
+2) Read in the carrier data and show the first 6 rows:
+
+```{r}
+carrier <- read_csv('CARRIER_LIST.csv')
+head(carrier)
+```
+
+3) Find the top 5 (known) carriers that sent the most (total) weight to or from AFRICOM. Show the result below:
+
+```{r}
+transcom_sub <- transcom %>% 
+  filter(CARRIER != 'UNKNOWN') %>% 
+  filter(SPOD_AOR == 'AFRICOM' | SPOE_AOR == 'AFRICOM') %>% 
+  group_by(CARRIER) %>% 
+  summarise(total_weight = sum(WEIGHT)) %>% 
+  top_n(5) %>% 
+  arrange(-total_weight)
+
+transcom_sub
+
+```
+
+4) Use a join to merge the carrier data with your result from the above question.  Show the result below:
+
+```{r}
+carrier_weight <- transcom_sub %>% 
+  left_join(carrier, by = 'CARRIER')
+
+carrier_weight
+
+```
+
+
+
+

@@ -1,0 +1,210 @@
+---
+title: "Bluebike Marketing Information Display"
+output: 
+  flexdashboard::flex_dashboard:
+    css: styles.css
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=T}
+library(flexdashboard)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(reshape2)
+library(ggridges)
+library(leaflet)
+library(tidyverse)
+library(tidytext)
+library(textdata)
+library(rvest)
+
+```
+
+```{r}
+pop_data <- read.csv("bluebikes_population_data.csv")
+gen_data <- read.csv("bluebikes_data_general.csv")
+```
+
+Introduction {data-navmenu="Explore"}
+===========================================================================
+
+
+Column {data-width=550}
+-----------------------------------------------------------------------
+
+### Overview
+
+
+In light of Bluebikes' effort to expand its services from the Boston Aera to the West Point, Highland Falls, and Fort Montgomery area, our team reviewed and analyzed data from the 2011 and 2012 ride share statistics. This information helped us understand user activity with Bluebike bikes, which is an integral step in providing recommendations for a marketing and promotion campaign.The purpose of this dashboard is to emphasize our teams findings and critical facts that shape our recommendations. This includes visuals to identify the target audience and how it changes over time, their characteristics, and how ridership is impacted by the weather and season. Lastly, how total ridership is impacted based on temperature, weekday, and weather from year to year can be viewed using the interactive chart.
+
+
+### Assumptions
+
+In  addition to evaluating the data, some assumptions were made in order to increase the validity of our visualizations and subsequent inferences and deductions. These assumptions include:
+
+1. The demographics of the West Point, Highland Falls, and Fort Montgomery area are statistically the same as the demographics of Boston. This is necessary so that the conclusions made from the Boston data can be applied to the area of interest.
+
+2. The competing bike share companies do not have enough of an influence on the exisiting Boston population to have an effect on the proposed marketing strategies. This is necessary to make sound suggestions to the marketing team.
+
+3. The culture and way of life in Boston is statistically the same currently as it was in 2011 and 2012.This assumption is vital to ensure that we can extrapolate the findings to 2020.
+
+
+Column {data-width=450}
+-----------------------------------------------------------------------
+### Area of Interest:  West Point, Highland Falls, and Fort Montgomery
+
+```{r}
+leaflet() %>%
+  setView(lng = -73.95, lat = 41.39, zoom =12) %>%
+  addProviderTiles("OpenStreetMap.Mapnik") 
+
+```
+
+
+
+Info Visualizations {data-navmenu="Explore"}
+======================================================================
+
+Column {data-width=333}
+-----------------------------------------------------------------------
+### Target Audience
+
+This plot shows that the audience that rides Bluebikes in Boston in the years 2011 and 2012 are students, commuters, and registered individuals. This is becuase, from month to month, the number of people who are students, commuters, and are registered tend to be the highest. We can infer that the usual customer is a student who commutes to classes. Additionally, the majority of the customers that regularly use the bikes are registered members and regular customers.
+
+```{r}
+ride_type_demo <- pop_data %>% 
+  group_by(month) %>% 
+  summarise(total_riders = mean(total_riders), casual = mean(casual), 
+            registered = mean(registered), leisure = mean(leisure), commute = mean(commute), 
+            employed = mean(employed), unemployed = mean(unemployed), student = mean(student))
+
+
+melted_ride_type <- melt(ride_type_demo, id.vars = "month", measure.vars = c("casual", 
+                                                                      "registered", "leisure", 
+                                                                      "commute", "employed", "student"))
+
+
+ggplot(melted_ride_type, aes(x = value, y = variable, fill = variable)) + geom_density_ridges(scale = 4, rel_min_height = 0.01)+
+  scale_x_continuous(breaks = seq(0,275,50)) + theme_minimal() + xlab("Number of Riders") + ylab("Ridership Population Category") + ggtitle("Distribution of Riders by Category") + labs(fill = "Category")+ theme(plot.title = element_text(hjust = 0.5))
+```
+
+Column {data-width=333}
+-----------------------------------------------------------------------
+### Target Audience Over Time
+
+This plot reveals that there are minimal changes to proportion of each age group that ride bluebikes in each month during the years 2011 and 2012. This is evident becuase for every month, the 25 and under age group make up a little over 50% of riders, the 26 to 35 year old make up around 25% of riders, the 36 to 45 year olds and the 46 to 55 year olds make up around 10% of riders respectively, and the over 55 age group make up around 5% of riders. Although there are slight increases of riders in the summer months for the older age groups, the distribution stays roughly consistent. 
+
+```{r}
+age_demo <- pop_data %>% 
+  mutate(Under_Age25 = under_25/total_riders) %>% 
+  mutate(Age26_to_Age35 = age_2635/total_riders) %>% 
+  mutate(Age36_to_Age45 = age_3645/total_riders) %>% 
+  mutate(Age46_to_Age55 = age_4655/total_riders) %>% 
+  mutate(Over_Age55 = over_55/total_riders) %>%
+  select(year, month, Under_Age25 , Age26_to_Age35, Age36_to_Age45, Age46_to_Age55, Over_Age55) %>% 
+  mutate(month = as.factor(month))
+  
+age_demo <- age_demo %>% 
+  group_by(month) %>% 
+  summarise(Under_Age25 = mean(Under_Age25), Age26_to_Age35 = mean(Age26_to_Age35), 
+            Age36_to_Age45 = mean(Age36_to_Age45), Age46_to_Age55 = mean(Age46_to_Age55), 
+            Over_Age55 = mean(Over_Age55))
+
+melted_age_demo <- melt(age_demo, id.vars = "month", measure.vars = c("Under_Age25", "Age26_to_Age35", 
+                                                                      "Age36_to_Age45", "Age46_to_Age55", 
+                                                                      "Over_Age55"))
+
+
+ggplot(melted_age_demo, aes(x = month, y = value )) + geom_col(aes(fill = variable), width = 0.7) +  theme_minimal() + xlab("Months of the Year") + ylab("Proportion of Riders") + ggtitle("Distribution of Riders by Age Group Over Time") + labs(fill = "Age Group")+ theme(plot.title = element_text(hjust = 0.5))
+```
+
+Column {data-width=333}
+-----------------------------------------------------------------------
+
+### Ridership Levels in Response to Season and Weather
+
+This graph displays the total number of riders for each of the months. The average temperature of each month is labeled on the bar graph accordingly. It is clear that the summer months and months of early fall have the highest number of bike riders. The warmest months yeild the highest revenue for Bluebikes. The months of May through October each have well over 3000 total riders. Once the average temperature drops well below 50, ridership begins to decrease. Of the winter months, the holiday season shows a significant spike in ridership mide-December.
+
+```{r}
+
+full_data <- pop_data %>%
+  left_join(gen_data, by = "id") %>% 
+  group_by(month) %>% 
+  summarise(temp = mean(temp), total_riders=sum(total_riders)) %>% 
+  mutate( month = as.factor(month)) %>% 
+  mutate( temp = round(temp*100)) 
+
+ggplot(data = full_data, aes(x = month, y = total_riders, fill = month)) +
+  geom_bar(stat = "identity", position=position_dodge()) +
+  geom_text(aes(label=temp), vjust=1.6, color="black",
+            position = position_dodge(0.9), size=4) + ggtitle("Bike Riders and Average Temperature in Each Month ") + xlab("Months of the Year") + ylab("Total Riders") + scale_fill_manual(values=c("#66CCFF", "#6699FF", "#66CC99", "#66FF66", "#66CC33", "#FF6633", "#CC3300", "#990000", "#CC3366", "#990066", "#990099", "#6600FF"))+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+
+
+
+
+
+Interactive Chart {.interactivechart data-navmenu="Explore"}
+========================================================================
+
+
+Column {.sidebar data-width=350}
+-----------------------------------------------------------------------
+View rideshare levels in response to temperature, humidity, and weekday for the years 2011 and 2012. 
+
+
+```{r}
+selectInput("year", label = "Year:", 
+            choices = c(2011, 2012), selected = 2011)
+
+selectInput("x_var", label = "Influencing Variable:", choices = c("Temperature", "Humidity", "Week Day"))
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Histogram of Total Number of Riders vs Influencing Factor by Year
+
+```{r}
+joined_data <- gen_data %>% 
+  left_join(pop_data, gen_data, by = "id") %>% 
+  mutate(temp = round(temp*100))
+
+filtered_data <- reactive({
+ joined_data %>% 
+     filter(year == input$year)
+})
+
+
+set_x <- reactive({
+ if(input$x_var == "Temperature"){ind_var = filtered_data()$temp}
+ else if(input$x_var == "Humidity"){ind_var = filtered_data()$hum}
+ else if(input$x_var == "Week Day"){ind_var = filtered_data()$weekday}
+})
+
+
+set_ylim <- reactive({
+ if(input$x_var == "Temperature"){high = 125000}
+ else if(input$x_var == "Humidity"){high = 75000}
+ else if(input$x_var == "Week Day"){high = 400000}
+})
+
+
+renderPlot({
+  
+  ggplot(filtered_data(), aes(x = set_x(), y = total_riders))+geom_col() + theme_minimal() + xlab(input$x_var) + ylab("Total Number of Riders") + ylim(0, set_ylim())
+  
+})
+
+
+```
+
+
